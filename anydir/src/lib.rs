@@ -3,7 +3,7 @@ use include_dir::Dir;
 use std::{fs, path::PathBuf};
 
 pub trait DirOps {
-    fn list_files(&self) -> Vec<String>;
+    fn list_files(&self) -> Vec<PathBuf>;
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -12,11 +12,8 @@ pub struct CtDir {
 }
 
 impl DirOps for CtDir {
-    fn list_files(&self) -> Vec<String> {
-        self.dir
-            .files()
-            .map(|f| f.path().display().to_string())
-            .collect()
+    fn list_files(&self) -> Vec<PathBuf> {
+        self.dir.files().map(|f| f.path().to_path_buf()).collect()
     }
 }
 
@@ -26,20 +23,18 @@ pub struct RtDir {
 }
 
 impl DirOps for RtDir {
-    fn list_files(&self) -> Vec<String> {
-        let mut files = Vec::new();
+    fn list_files(&self) -> Vec<PathBuf> {
         if let Ok(entries) = fs::read_dir(&self.dir) {
-            for entry in entries.flatten() {
-                if let Ok(ft) = entry.file_type() {
-                    if ft.is_file() {
-                        if let Some(name) = entry.file_name().to_str() {
-                            files.push(name.to_string());
-                        }
-                    }
-                }
-            }
+            entries
+                .flatten()
+                .filter_map(|entry| match entry.file_type() {
+                    Ok(ft) if ft.is_file() => Some(entry.path()),
+                    _ => None,
+                })
+                .collect()
+        } else {
+            Vec::new()
         }
-        files
     }
 }
 
@@ -49,7 +44,7 @@ pub enum AnyDir {
 }
 
 impl DirOps for AnyDir {
-    fn list_files(&self) -> Vec<String> {
+    fn list_files(&self) -> Vec<PathBuf> {
         match self {
             AnyDir::Ct(c) => c.list_files(),
             AnyDir::Rt(r) => r.list_files(),
