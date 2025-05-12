@@ -1,6 +1,7 @@
-[package]
-name = "anydir"
-version = "0.1.0"
-edition = "2024"
+[workspace]
+members = [
+    "anydir-macro",
+    "anydir",
+]
 
-[dependencies]
+workspace.resolver = "2"

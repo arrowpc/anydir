@@ -1,0 +1,8 @@
+[package]
+name = "anydir"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+include_dir = "0.7"  
+anydir-macro = { path = "../anydir-macro" }
