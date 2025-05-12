@@ -6,13 +6,24 @@ version = 4
 name = "anydir"
 version = "0.1.0"
 dependencies = [
- "anydir-macro",
+ "anydir-macro 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "include_dir",
 ]
 
 [[package]]
 name = "anydir-macro"
 version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "anydir-macro"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3af147f30f98880acef1ba731494dcd9ec188595cd5faf37ca6ef3b970958456"
 dependencies = [
  "proc-macro2",
  "quote",

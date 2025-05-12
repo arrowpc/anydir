@@ -13,4 +13,4 @@ categories.workspace = true
 [dependencies]
 include_dir.workspace = true
 
-anydir-macro = { path = "../anydir-macro" }
+anydir-macro = "0.1.0"
