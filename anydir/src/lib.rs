@@ -3,7 +3,7 @@ use include_dir::Dir;
 use std::{fs, path::PathBuf};
 
 pub trait DirOps {
-    fn list_files(&self) -> Vec<PathBuf>;
+    fn files(&self) -> Vec<PathBuf>;
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -12,7 +12,7 @@ pub struct CtDir {
 }
 
 impl DirOps for CtDir {
-    fn list_files(&self) -> Vec<PathBuf> {
+    fn files(&self) -> Vec<PathBuf> {
         self.dir.files().map(|f| f.path().to_path_buf()).collect()
     }
 }
@@ -23,7 +23,7 @@ pub struct RtDir {
 }
 
 impl DirOps for RtDir {
-    fn list_files(&self) -> Vec<PathBuf> {
+    fn files(&self) -> Vec<PathBuf> {
         if let Ok(entries) = fs::read_dir(&self.dir) {
             entries
                 .flatten()
@@ -44,10 +44,10 @@ pub enum AnyDir {
 }
 
 impl DirOps for AnyDir {
-    fn list_files(&self) -> Vec<PathBuf> {
+    fn files(&self) -> Vec<PathBuf> {
         match self {
-            AnyDir::Ct(c) => c.list_files(),
-            AnyDir::Rt(r) => r.list_files(),
+            AnyDir::Ct(c) => c.files(),
+            AnyDir::Rt(r) => r.files(),
         }
     }
 }
@@ -69,12 +69,23 @@ macro_rules! anydir {
 }
 
 #[test]
-fn list_files() {
+fn files() {
     let dir = anydir!(ct, "$CARGO_MANIFEST_DIR");
-    let files = dir.list_files();
+    let files = dir.files();
     println!("{:?}", files);
     let dir2 = anydir!(rt, std::env::current_dir().unwrap());
-    let files2 = dir2.list_files();
-    println!("{:?}", files2);
+    let files2 = dir2.files();
+    for path in &files {
+        match fs::read_to_string(path) {
+            Ok(contents) => println!("Contents of {:?}:\n{}", path, contents),
+            Err(e) => println!("Could not read {:?}: {}", path, e),
+        }
+    }
+    for path in &files2 {
+        match fs::read_to_string(path) {
+            Ok(contents) => println!("Contents of {:?}:\n{}", path, contents),
+            Err(e) => println!("Could not read {:?}: {}", path, e),
+        }
+    }
     assert_eq!(files, files2);
 }

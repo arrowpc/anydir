@@ -27,12 +27,12 @@ use anydir::anydir;
 fn main() {
     // Embed files at compile time - bundled directly in your binary
     let ct_dir = anydir!(ct, "$CARGO_MANIFEST_DIR");
-    let ct_files = ct_dir.list_files();
+    let ct_files = ct_dir.files();
     println!("Compile-time files: {:?}", ct_files);
 
     // Access files at runtime from the filesystem
     let rt_dir = anydir!(rt, "./");
-    let rt_files = rt_dir.list_files();
+    let rt_files = rt_dir.files();
     println!("Runtime files: {:?}", rt_files);
 }
 ```
@@ -55,4 +55,4 @@ fn main() {
 ### Traits
 
 - `DirOps` - Common operations for directories
-  - `list_files()` - Returns a vector of filenames in the directory
+  - `files()` - Returns a vector of filenames in the directory
