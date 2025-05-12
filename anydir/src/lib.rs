@@ -1,5 +1,4 @@
-#[cfg(test)]
-use anydir_macro::embed_dir;
+pub use anydir_macro::embed_dir;
 use include_dir::Dir;
 use std::{fs, path::PathBuf};
 
@@ -58,6 +57,10 @@ impl DirOps for AnyDir {
     }
 }
 
+pub fn anydir_rt<P: Into<std::path::PathBuf>>(path: P) -> AnyDir {
+    AnyDir::Rt(RtDir { dir: path.into() })
+}
+
 #[macro_export]
 macro_rules! anydir {
     (ct, $path:literal) => {
@@ -65,20 +68,17 @@ macro_rules! anydir {
             dir: embed_dir!($path),
         })
     };
-    (rt, $path:literal) => {
-        $crate::AnyDir::Rt($crate::RtDir {
-            dir: std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join($path),
-        })
+    (rt, $path:expr) => {
+        $crate::anydir_rt($path)
     };
 }
 
 #[test]
-fn ct_list_files() {
+fn list_files() {
     let dir = anydir!(ct, "$CARGO_MANIFEST_DIR");
     let files = dir.list_files();
     println!("{:?}", files);
-
-    let dir2 = anydir!(rt, "./");
+    let dir2 = anydir!(rt, std::env::current_dir().unwrap());
     let files2 = dir2.list_files();
     println!("{:?}", files2);
     assert_eq!(files, files2);
