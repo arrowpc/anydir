@@ -2,6 +2,7 @@
 
 A Rust library that provides a unified interface for working with both compile-time embedded directories and runtime directories.
 
+[![Crates.io](https://img.shields.io/crates/v/anydir.svg)](https://crates.io/crates/anydir)
 
 ## Motivation
 
@@ -28,7 +29,7 @@ fn main() {
     let ct_dir = anydir!(ct, "$CARGO_MANIFEST_DIR");
     let ct_files = ct_dir.list_files();
     println!("Compile-time files: {:?}", ct_files);
-    
+
     // Access files at runtime from the filesystem
     let rt_dir = anydir!(rt, "./");
     let rt_files = rt_dir.list_files();
