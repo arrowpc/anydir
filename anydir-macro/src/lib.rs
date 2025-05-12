@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{LitStr, parse_macro_input};
+use syn::{parse_macro_input, LitStr};
 
 /// Embed a directory at compile time
 #[proc_macro]
