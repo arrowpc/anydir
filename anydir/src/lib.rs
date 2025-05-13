@@ -108,12 +108,18 @@ impl DirOps for CtDir {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct RtDir {
-    pub dir: PathBuf,
+    pub path: PathBuf,
+}
+
+impl RtDir {
+    pub fn path(&self) -> &PathBuf {
+        &self.path
+    }
 }
 
 impl DirOps for RtDir {
     fn file_entries(&self) -> Vec<AnyFileEntry> {
-        let base_dir = &self.dir;
+        let base_dir = &self.path;
         if let Ok(entries) = fs::read_dir(base_dir) {
             entries
                 .flatten()
@@ -144,6 +150,15 @@ pub enum AnyDir {
     Rt(RtDir),
 }
 
+impl AnyDir {
+    pub fn as_rt(&self) -> Option<&RtDir> {
+        match self {
+            AnyDir::Rt(rt) => Some(rt),
+            _ => None,
+        }
+    }
+}
+
 impl DirOps for AnyDir {
     fn file_entries(&self) -> Vec<AnyFileEntry> {
         match self {
@@ -154,39 +169,31 @@ impl DirOps for AnyDir {
 }
 
 pub fn anydir_rt<P: Into<std::path::PathBuf>>(path: P) -> AnyDir {
-    AnyDir::Rt(RtDir { dir: path.into() })
+    AnyDir::Rt(RtDir { path: path.into() })
 }
 
 #[macro_export]
 macro_rules! anydir {
-    (ct, $path:literal) => {
+    (ct, $path:literal) => {{
         $crate::AnyDir::Ct($crate::CtDir {
             dir: embed_dir!($path),
         })
-    };
+    }};
     (rt, $path:expr) => {
         $crate::anydir_rt($path)
     };
 }
 
-// #[test]
-// fn file_entries() {
-//     let dir = anydir!(ct, "$CARGO_MANIFEST_DIR");
-//     let file_entries = dir.file_entries();
-//     println!("{:?}", file_entries);
-//     let dir2 = anydir!(rt, std::env::current_dir().unwrap());
-//     let file_entries2 = dir2.file_entries();
-//     for path in &file_entries {
-//         match fs::read_to_string(path) {
-//             Ok(contents) => println!("Contents of {:?}:\n{}", path, contents),
-//             Err(e) => println!("Could not read {:?}: {}", path, e),
-//         }
-//     }
-//     for path in &file_entries2 {
-//         match fs::read_to_string(path) {
-//             Ok(contents) => println!("Contents of {:?}:\n{}", path, contents),
-//             Err(e) => println!("Could not read {:?}: {}", path, e),
-//         }
-//     }
-//     assert_eq!(file_entries, file_entries2);
-// }
+#[test]
+fn basic() {
+    let dir = anydir!(ct, "$CARGO_MANIFEST_DIR");
+    println!("-----------");
+    for entry in dir.file_entries() {
+        println!("{:?}", entry.path());
+    }
+
+    let dir = anydir!(rt, ".");
+    if let Some(rt) = dir.as_rt() {
+        println!("{}", rt.path().display());
+    }
+}

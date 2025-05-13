@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "anydir"
-version = "0.1.13"
+version = "0.1.15"
 dependencies = [
  "anydir-macro 0.1.0",
  "include_dir",
@@ -23,7 +23,7 @@ dependencies = [
 
 [[package]]
 name = "anydir-macro"
-version = "0.1.13"
+version = "0.1.15"
 dependencies = [
  "proc-macro2",
  "quote",
