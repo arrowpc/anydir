@@ -1,12 +1,13 @@
 pub use anydir_macro::embed_dir;
 use include_dir::Dir;
 use std::{
-    fs, io,
+    fmt, fs, io,
     path::{Path, PathBuf},
 };
 
 pub trait FileEntry {
     fn path(&self) -> &Path;
+    fn absolute_path(&self) -> Option<&Path>;
     fn read_bytes(&self) -> Result<Vec<u8>, io::Error>;
     fn read_string(&self) -> Result<String, io::Error>;
 }
@@ -20,6 +21,11 @@ pub struct CtFileEntry {
 impl FileEntry for CtFileEntry {
     fn path(&self) -> &Path {
         &self.relative_path
+    }
+
+    fn absolute_path(&self) -> Option<&Path> {
+        // Compile-time entries don't have a filesystem path at runtime
+        None
     }
 
     fn read_bytes(&self) -> Result<Vec<u8>, io::Error> {
@@ -36,15 +42,46 @@ impl FileEntry for CtFileEntry {
     }
 }
 
+impl AsRef<Path> for CtFileEntry {
+    fn as_ref(&self) -> &Path {
+        self.path()
+    }
+}
+
+impl fmt::Display for CtFileEntry {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.path().display())
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct RtFileEntry {
     absolute_path: PathBuf,
-    relative_path: PathBuf,
+    relative_path: PathBuf, // Relative to the *source* directory of RtDir
+}
+
+impl RtFileEntry {
+    pub fn from_path(absolute_path: PathBuf) -> io::Result<Self> {
+        let cwd = std::env::current_dir()?;
+        let relative_path = absolute_path
+            .strip_prefix(&cwd)
+            .unwrap_or(&absolute_path)
+            .to_path_buf();
+
+        Ok(RtFileEntry {
+            absolute_path,
+            relative_path,
+        })
+    }
 }
 
 impl FileEntry for RtFileEntry {
     fn path(&self) -> &Path {
         &self.relative_path
+    }
+
+    fn absolute_path(&self) -> Option<&Path> {
+        Some(&self.absolute_path)
     }
 
     fn read_bytes(&self) -> Result<Vec<u8>, io::Error> {
@@ -56,10 +93,30 @@ impl FileEntry for RtFileEntry {
     }
 }
 
+impl AsRef<Path> for RtFileEntry {
+    fn as_ref(&self) -> &Path {
+        &self.relative_path
+    }
+}
+
+impl fmt::Display for RtFileEntry {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.path().display())
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum AnyFileEntry {
     Ct(CtFileEntry),
     Rt(RtFileEntry),
+}
+
+impl AnyFileEntry {
+    pub fn from_path<P: Into<PathBuf>>(path: P) -> io::Result<Self> {
+        let path_buf = path.into();
+        let rt_entry = RtFileEntry::from_path(path_buf)?;
+        Ok(AnyFileEntry::Rt(rt_entry))
+    }
 }
 
 impl FileEntry for AnyFileEntry {
@@ -69,16 +126,43 @@ impl FileEntry for AnyFileEntry {
             AnyFileEntry::Rt(entry) => entry.path(),
         }
     }
+
+    fn absolute_path(&self) -> Option<&Path> {
+        match self {
+            AnyFileEntry::Ct(entry) => entry.absolute_path(),
+            AnyFileEntry::Rt(entry) => entry.absolute_path(),
+        }
+    }
+
     fn read_bytes(&self) -> io::Result<Vec<u8>> {
         match self {
             AnyFileEntry::Ct(entry) => entry.read_bytes(),
             AnyFileEntry::Rt(entry) => entry.read_bytes(),
         }
     }
+
     fn read_string(&self) -> io::Result<String> {
         match self {
             AnyFileEntry::Ct(entry) => entry.read_string(),
             AnyFileEntry::Rt(entry) => entry.read_string(),
+        }
+    }
+}
+
+impl AsRef<Path> for AnyFileEntry {
+    fn as_ref(&self) -> &Path {
+        match self {
+            AnyFileEntry::Ct(entry) => entry.as_ref(),
+            AnyFileEntry::Rt(entry) => entry.as_ref(),
+        }
+    }
+}
+
+impl fmt::Display for AnyFileEntry {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            AnyFileEntry::Ct(entry) => write!(f, "{}", entry),
+            AnyFileEntry::Rt(entry) => write!(f, "{}", entry),
         }
     }
 }
@@ -128,7 +212,7 @@ impl DirOps for RtDir {
                     if absolute_path.is_file() {
                         let relative_path = absolute_path
                             .strip_prefix(base_dir)
-                            .unwrap_or(&absolute_path)
+                            .unwrap_or(&absolute_path) // Should not fail if iterating within base_dir
                             .to_path_buf();
                         Some(AnyFileEntry::Rt(RtFileEntry {
                             absolute_path,
@@ -140,6 +224,8 @@ impl DirOps for RtDir {
                 })
                 .collect()
         } else {
+            // TODO: Handle the case where the directory doesn't exist or is not readable
+            eprintln!("Warning: Could not read directory: {}", base_dir.display());
             Vec::new()
         }
     }
@@ -172,11 +258,15 @@ pub fn anydir_rt<P: Into<std::path::PathBuf>>(path: P) -> AnyDir {
     AnyDir::Rt(RtDir { path: path.into() })
 }
 
+pub fn anyfile_from_path<P: Into<PathBuf>>(path: P) -> io::Result<AnyFileEntry> {
+    AnyFileEntry::from_path(path)
+}
+
 #[macro_export]
 macro_rules! anydir {
     (ct, $path:literal) => {{
         $crate::AnyDir::Ct($crate::CtDir {
-            dir: embed_dir!($path),
+            dir: $crate::embed_dir!($path),
         })
     }};
     (rt, $path:expr) => {
@@ -187,7 +277,6 @@ macro_rules! anydir {
 #[test]
 fn basic() {
     let dir = anydir!(ct, "$CARGO_MANIFEST_DIR");
-    println!("-----------");
     for entry in dir.file_entries() {
         println!("{:?}", entry.path());
     }
